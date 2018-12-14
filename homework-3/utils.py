@@ -11,18 +11,22 @@ mnist_transform = transforms.Compose([
                 transforms.Normalize((0.1307,), (0.3081,)),
            ])
 
-def mnist(batch_size=50, valid=0, shuffle=True, transform=mnist_transform, path='./MNIST_data'):
+def mnist(batch_size=50, valid=0, shuffle=True, transform=mnist_transform, path='./MNIST_data', train=None):
     test_data = datasets.MNIST(path, train=False, download=True, transform=transform)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
     
     train_data = datasets.MNIST(path, train=True, download=True, transform=transform)
     if valid > 0:
-        num_train = len(train_data)
+        if not train:
+            num_train = len(train_data)
+        else:
+            totSize = valid + train
+            num_train = totSize
         indices = list(range(num_train))
         split = num_train-valid
         np.random.shuffle(indices)
 
-        train_idx, valid_idx = indices[:split], indices[split:]
+        train_idx, valid_idx = indices[:split], indices[split:totSize]
         train_sampler = SubsetRandomSampler(train_idx)
         valid_sampler = SubsetRandomSampler(valid_idx)
 
@@ -44,20 +48,21 @@ def plot_mnist(images, shape):
         plt.yticks(np.array([]))
     plt.show()
     
-def plot_graphs(log, tpe='loss'):
-    keys = log.keys()
-    logs = {k:[z for z in zip(*log[k])] for k in keys}
-    epochs = {k:range(len(log[k])) for k in keys}
-    
+def plot_graphs(trlog, tslog, tpe='loss'):
+    keys = trlog.keys()
+    trlogs = {k:[z for z in zip(*trlog[k])] for k in keys}
+    tslogs = {k:[z for z in zip(*tslog[k])] for k in keys}
+    epochs = {k:range(len(trlog[k])) for k in keys}
+    logs = [(trlogs, 'train','-'), (tslogs,'test',':')]
     if tpe == 'loss':
-        handlers, = zip(*[plt.plot(epochs[k], logs[k][0], label=k) for k in keys])
+        handlers, = zip(*[plt.plot(epochs[k], log[0][k][0], log[2], label=k+"_"+log[1]) for log in logs for k in keys])
         plt.title('errors')
         plt.xlabel('epoch')
         plt.ylabel('error')
         plt.legend(handles=handlers)
         plt.show()
     elif tpe == 'accuracy':
-        handlers, = zip(*[plt.plot(epochs[k], logs[k][1], label=k) for k in log.keys()])
+        handlers, = zip(*[plt.plot(epochs[k], log[0][k][1], log[2], label=k+"_"+log[1]) for log in logs for k in keys])
         plt.title('accuracy')
         plt.xlabel('epoch')
         plt.ylabel('accuracy')
